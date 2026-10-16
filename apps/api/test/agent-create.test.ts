@@ -328,7 +328,7 @@ test("POST /agents validation — capability entry over length", async () => {
       capabilities: ["a".repeat(33)],
     });
     assert.equal(res.status, 400);
-    assert.equal(res.body.error, "capability entries must be 32 characters or fewer");
+    assert.equal(res.body.error, "capability entries must be 32 bytes or fewer");
   } finally {
     await server.close();
   }
@@ -437,3 +437,83 @@ test("POST /agents capabilities are trimmed", async () => {
     await server.close();
   }
 });
+
+test("POST /agents validation — multibyte capability exceeding 32 UTF-8 bytes is rejected", async () => {
+  const server = await createApiServer({
+    port: 0,
+    horizonUrl: "https://horizon-testnet.stellar.org",
+    signer: makeSigner("GTEST"),
+    authProvider: new DevAuthProvider({ defaultOwnerId: "owner-a" }),
+  });
+  await server.listen(0);
+  const baseUrl = `http://127.0.0.1:${(server.server.address() as any).port}`;
+  try {
+    // 17 two-byte characters: JavaScript string length is 17 (<= 32), but UTF-8 byte length is 34 (> 32)
+    const twoByteOver = "é".repeat(17);
+    assert.equal(twoByteOver.length, 17);
+    assert.equal(Buffer.byteLength(twoByteOver, "utf8"), 34);
+
+    const res1 = await post(`${baseUrl}/agents`, {
+      displayName: "Valid Name",
+      capabilities: [twoByteOver],
+    });
+    assert.equal(res1.status, 400);
+    assert.equal(res1.body.error, "capability entries must be 32 bytes or fewer");
+
+    // 9 four-byte emoji: JavaScript string length is 18 (<= 32), but UTF-8 byte length is 36 (> 32)
+    const emojiOver = "🚀".repeat(9);
+    assert.equal(emojiOver.length, 18);
+    assert.equal(Buffer.byteLength(emojiOver, "utf8"), 36);
+
+    const res2 = await post(`${baseUrl}/agents`, {
+      displayName: "Valid Name",
+      capabilities: [emojiOver],
+    });
+    assert.equal(res2.status, 400);
+    assert.equal(res2.body.error, "capability entries must be 32 bytes or fewer");
+
+    // 11 three-byte Devanagari characters: JavaScript string length is 11 (<= 32), but UTF-8 byte length is 33 (> 32)
+    const threeByteOver = "अ".repeat(11);
+    assert.equal(threeByteOver.length, 11);
+    assert.equal(Buffer.byteLength(threeByteOver, "utf8"), 33);
+
+    const res3 = await post(`${baseUrl}/agents`, {
+      displayName: "Valid Name",
+      capabilities: [threeByteOver],
+    });
+    assert.equal(res3.status, 400);
+    assert.equal(res3.body.error, "capability entries must be 32 bytes or fewer");
+  } finally {
+    await server.close();
+  }
+});
+
+test("POST /agents validation — multibyte capability within 32 UTF-8 bytes is accepted", async () => {
+  const server = await createApiServer({
+    port: 0,
+    horizonUrl: "https://horizon-testnet.stellar.org",
+    signer: makeSigner("GTEST"),
+    authProvider: new DevAuthProvider({ defaultOwnerId: "owner-a" }),
+  });
+  await server.listen(0);
+  const baseUrl = `http://127.0.0.1:${(server.server.address() as any).port}`;
+  try {
+    // Exactly 32 UTF-8 bytes: 16 two-byte characters
+    const exactly32BytesTwoByte = "é".repeat(16);
+    assert.equal(Buffer.byteLength(exactly32BytesTwoByte, "utf8"), 32);
+
+    // Exactly 32 UTF-8 bytes: 8 four-byte emoji
+    const exactly32BytesEmoji = "🚀".repeat(8);
+    assert.equal(Buffer.byteLength(exactly32BytesEmoji, "utf8"), 32);
+
+    const res = await post(`${baseUrl}/agents`, {
+      displayName: "Valid Name",
+      capabilities: [exactly32BytesTwoByte, exactly32BytesEmoji],
+    });
+    assert.equal(res.status, 201);
+    assert.deepEqual(res.body.agent.capabilities, [exactly32BytesTwoByte, exactly32BytesEmoji]);
+  } finally {
+    await server.close();
+  }
+});
+

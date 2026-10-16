@@ -48,10 +48,10 @@ Public (no authentication). Returns `{"status":"ok","signerAccountId":"G..."}`.
 
 Create an agent. Auth: any authenticated owner.
 
-Body: `{ "displayName": string (required, ≤100 chars, trimmed), "description"?: string (optional, ≤500 chars), "capabilities"?: string[] (optional, ≤32 entries, each ≤32 chars, trimmed, non-empty, unique), "stellarAddress"?: string }`
+Body: `{ "displayName": string (required, ≤100 chars, trimmed), "description"?: string (optional, ≤500 chars), "capabilities"?: string[] (optional, ≤32 entries, each ≤32 bytes, trimmed, non-empty, unique), "stellarAddress"?: string }`
 
 - `201` → `{ "agent": AgentRecord }` (bound to caller's `ownerId`)
-- `400` → invalid JSON / missing `displayName` / `displayName` too long (>100 chars) / `description` not a string or too long (>500 chars) / `capabilities` not string array, too many entries (>32), entry too long (>32 chars), empty entry after trimming, or duplicate entries / `stellarAddress` not a string
+- `400` → invalid JSON / missing `displayName` / `displayName` too long (>100 chars) / `description` not a string or too long (>500 chars) / `capabilities` not string array, too many entries (>32), entry too long (>32 bytes), empty entry after trimming, or duplicate entries / `stellarAddress` not a string
 
 ### GET /agents
 

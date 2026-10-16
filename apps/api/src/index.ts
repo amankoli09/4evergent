@@ -699,8 +699,8 @@ export async function createApiServer(options: ServerOptions) {
         if (trimmed.length === 0) {
           return json(res, { error: "capability entries cannot be empty" }, 400);
         }
-        if (trimmed.length > 32) {
-          return json(res, { error: "capability entries must be 32 characters or fewer" }, 400);
+        if (Buffer.byteLength(trimmed, "utf8") > 32) {
+          return json(res, { error: "capability entries must be 32 bytes or fewer" }, 400);
         }
         if (seen.has(trimmed)) {
           return json(res, { error: "capabilities must not contain duplicate entries" }, 400);
